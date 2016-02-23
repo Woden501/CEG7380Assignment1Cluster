@@ -103,7 +103,7 @@ public class RunningMean {
 		job.setJarByClass(snedeker.cc.project1.cluster.RunningMean.class);
 		
 		job.setOutputKeyClass(Text.class);
-		job.setOutputValueClass(Text.class);
+		job.setOutputValueClass(Time_Series.class);
 		//Set key, output classes for the job (same as output classes for Reducer)
 		job.setMapperClass(Map.class);
 		job.setReducerClass(Reduce.class);
