@@ -2,6 +2,7 @@ package snedeker.cc.project1.cluster;
 
 import java.io.IOException;
 import java.text.DateFormat;
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -109,8 +110,10 @@ public class RunningMean {
 			double mean3 = size3Total / 3.0;
 			double mean4 = size4Total / 4.0;
 			
+			DecimalFormat df = new DecimalFormat("#.00");
+			
 			// Write the output string to the means variable
-			means.set("3 Day: " + mean3 + ", 4 Day: " + mean4);
+			means.set("3 Day: " + df.format(mean3) + ", 4 Day: " + df.format(mean4));
 			
 			// Write the company code and means to the reducer context
 			context.write(key, means);
