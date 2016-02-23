@@ -91,6 +91,9 @@ public class RunningMean {
 		 */
 		public void reduce(Text key, Iterable<Time_Series> values, Context context) throws IOException, InterruptedException {
 			
+			Configuration conf = context.getConfiguration();
+			int windowSize = Integer.parseInt(conf.get("window.size"));
+			
 			int seriesCount = 0;
 			LinkedList<Double> prices = new LinkedList<>();
 			String companyCode = key.toString();
@@ -108,14 +111,14 @@ public class RunningMean {
 				
 				seriesCount++;
 				
-				if (prices.size() >= WINDOW_SIZE)
+				if (prices.size() >= windowSize)
 					prices.remove();
 				
 				prices.add(entry.getValue());
 				
 				double mean = 0;
 				
-				if (seriesCount < WINDOW_SIZE) {
+				if (seriesCount < windowSize) {
 					for (int i = 0; i < seriesCount; i++) {
 						total += prices.get(i);
 					}
@@ -123,11 +126,11 @@ public class RunningMean {
 					mean = total / (double) seriesCount;
 				}
 				else {
-					for (int i = 0; i < WINDOW_SIZE; i++) {
+					for (int i = 0; i < windowSize; i++) {
 						total += prices.get(i);
 					}
 					
-					mean = total / (double) WINDOW_SIZE;
+					mean = total / (double) windowSize;
 				}
 				
 				DecimalFormat df = new DecimalFormat("#.00");
@@ -157,6 +160,7 @@ public class RunningMean {
 	public static void main(String[] args) throws Exception {
 		//Get configuration object and set a job name
 		Configuration conf = new Configuration();
+		conf.set("window.size", args[0]);
 		Job job = new Job(conf, "runningMean");
 		job.setJarByClass(snedeker.cc.project1.cluster.RunningMean.class);
 		
@@ -173,8 +177,8 @@ public class RunningMean {
 		job.setOutputFormatClass(TextOutputFormat.class);
 		//job.setNumReduceTasks(2); #set num of reducers
 		//accept the hdfs input and output directory at run time
-		FileInputFormat.addInputPath(job, new Path(args[0]));
-		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		FileInputFormat.addInputPath(job, new Path(args[1]));
+		FileOutputFormat.setOutputPath(job, new Path(args[2]));
 		//Launch the job and wait for it to finish
 //		job.waitForCompletion(true);
 		System.exit(job.waitForCompletion(true) ? 0 : 1);
