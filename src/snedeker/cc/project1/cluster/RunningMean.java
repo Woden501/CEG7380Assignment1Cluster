@@ -21,17 +21,33 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 public class RunningMean {
 
+	/**
+	 * This is the Mapper component.  It will take the input data and separate it into
+	 * individual entries which will later be combined and averaged.
+	 * 
+	 * @author Colby Snedeker
+	 *
+	 */
 	public static class Map extends Mapper<LongWritable, Text, Text, Time_Series> {
-		//hadoop supported global variabless
+		// Create the variables that will hold the Company code, and the Time Series
 		private Text word = new Text();
 		private Time_Series series = new Time_Series();
-		    
+		
+		/**
+		 * This is the map function.  In this function the lines are read and tokenized.  The 
+		 * date and price information are placed into a Time_Series object.  This object is then
+		 * placed into the Mapper context as the value and the company code as the key.
+		 */
 		public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-			//take one line at a time and tokenizing the same
+			// Read in the first line
 			String line = value.toString();
 			
+			// Split the line on the "," delimiter
+			// The resultant String array values are
+			// value[0] - company code, value[1] - date, value[2] - price
 			String[] values = line.split(",");
-			// value[0] - company name, value[1] - date, value[2] - price
+			
+			// Create a simple date formatter for reading the date
 			DateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
 			format.setLenient(false);
 			Date date = null;
@@ -41,61 +57,72 @@ public class RunningMean {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			// Convert the Java Date into a long value
 			long longDate = date.getTime();
 			
+			// Set the values in the Time_Series
 			series.set(longDate, Double.parseDouble(values[2]));
+			// Set the word to be the company code
 			word.set(values[0]);
+			// Write the values back out to the mapper context
 			context.write(word, series);
-			
-//			StringTokenizer tokenizer = new StringTokenizer(line);
-//			//iterate through all the words available in that line 
-//			//and form the key value pair
-//			while (tokenizer.hasMoreTokens()) {
-//				word.set(tokenizer.nextToken());
-//				//send to output collector which passes the same to reducer
-//				context.write(word, one);
-//			}
 		}
 	}
 	
+	/**
+	 * This is the Reducer component.  It will take the Mapped, Shuffled, and Sorted data,
+	 * and output the means.
+	 * 
+	 * @author Colby Snedeker
+	 *
+	 */
 	public static class Reduce extends Reducer<Text, Time_Series, Text, Text> {
 
+		/**
+		 * This is the reduce function.  It iterates through all of the Time_Series values to 
+		 * compute the 3 and 4 window means.  It then takes those means and outputs a key 
+		 * value pair to the Reducer context that consists of the company code as the key, 
+		 * and a string providing the means in a formatted way as the value.
+		 */
 		public void reduce(Text key, Iterable<Time_Series> values, Context context) throws IOException, InterruptedException {
-			int seriesCount = 0;
+			int valueCount = 0;
 			double size3Total = 0;
 			double size4Total = 0;
 			
 			Text means = new Text();
 			
+			// Iterate through the series for the company, and compute both the 3 and 4 window means
 			for (Time_Series series : values) {
-				if (seriesCount < 3)
+				// Add values until there are three
+				if (valueCount < 3)
 					size3Total += series.getValue();
 				
-				if (seriesCount < 4)
+				// Add values until there are four
+				if (valueCount < 4)
 					size4Total += series.getValue();
 				
-				++seriesCount;
+				// Increase the value count
+				++valueCount;
 			}
 			
+			// Find both the 3 and 4 window means
 			double mean3 = size3Total / 3.0;
 			double mean4 = size4Total / 4.0;
 			
+			// Write the output string to the means variable
 			means.set("3 Day: " + mean3 + ", 4 Day: " + mean4);
 			
+			// Write the company code and means to the reducer context
 			context.write(key, means);
-			
-//			int sum = 0;
-//			//iterates through all the values with a key and add them together 
-//			//and give the final result as the key and sum of its values
-//			for (IntWritable val : values) {
-//				sum += val.get();
-//			}
-//			//writes the final result for that word to the reducer context object, 
-//			//and moves on to the next
-//			context.write(key, new IntWritable(sum));
 		}
 	}
 	
+	/**
+	 * Configures the Hadoop job, and reads the user provided arguments
+	 * 
+	 * @param args The user provided arguments.
+	 * @throws Exception
+	 */
 	public static void main(String[] args) throws Exception {
 		//Get configuration object and set a job name
 		Configuration conf = new Configuration();
