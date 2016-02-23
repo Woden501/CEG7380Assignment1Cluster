@@ -6,7 +6,9 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.Locale;
+import java.util.TreeMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -21,6 +23,8 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 public class RunningMean {
+	
+	final static private int WINDOW_SIZE = 3;
 
 	/**
 	 * This is the Mapper component.  It will take the input data and separate it into
@@ -86,37 +90,61 @@ public class RunningMean {
 		 * and a string providing the means in a formatted way as the value.
 		 */
 		public void reduce(Text key, Iterable<Time_Series> values, Context context) throws IOException, InterruptedException {
-			int valueCount = 0;
-			double size3Total = 0;
-			double size4Total = 0;
 			
-			Text means = new Text();
+			int seriesCount = 0;
+			LinkedList<Double> prices = new LinkedList<>();
+			String companyCode = key.toString();
 			
-			// Iterate through the series for the company, and compute both the 3 and 4 window means
+			// Sort the Time_Series by date
+			TreeMap<Long, Double> sortedSeries = new TreeMap<>();
 			for (Time_Series series : values) {
-				// Add values until there are three
-				if (valueCount < 3)
-					size3Total += series.getValue();
-				
-				// Add values until there are four
-				if (valueCount < 4)
-					size4Total += series.getValue();
-				
-				// Increase the value count
-				++valueCount;
+				sortedSeries.put(series.getTimestamp(), series.getValue());
 			}
 			
-			// Find both the 3 and 4 window means
-			double mean3 = size3Total / 3.0;
-			double mean4 = size4Total / 4.0;
+			// Iterate through the series for the company, and compute both the 3 and 4 window means
+			for (java.util.Map.Entry<Long, Double> entry : sortedSeries.entrySet()) {
+				Text means = new Text();
+				double total = 0;
+				
+				seriesCount++;
+				
+				if (prices.size() >= WINDOW_SIZE)
+					prices.remove();
+				
+				prices.add(entry.getValue());
+				
+				double mean = 0;
+				
+				if (seriesCount < WINDOW_SIZE) {
+					for (int i = 0; i < seriesCount; i++) {
+						total += prices.get(i);
+					}
+					
+					mean = total / (double) seriesCount;
+				}
+				else {
+					for (int i = 0; i < WINDOW_SIZE; i++) {
+						total += prices.get(i);
+					}
+					
+					mean = total / (double) WINDOW_SIZE;
+				}
+				
+				DecimalFormat df = new DecimalFormat("#.00");
+
+				// Write the output string to the means variable
+				means.set(df.format(mean));
+				
+				SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
+				String date = dateFormatter.format(new Date(entry.getKey()));
+				
+				// Properly set the key
+				key.set(companyCode + "," + date);
+					
+				// Write the company code and means to the reducer context
+				context.write(key, means);
+			}
 			
-			DecimalFormat df = new DecimalFormat("#.00");
-			
-			// Write the output string to the means variable
-			means.set("3 Day: " + df.format(mean3) + ", 4 Day: " + df.format(mean4));
-			
-			// Write the company code and means to the reducer context
-			context.write(key, means);
 		}
 	}
 	
@@ -148,7 +176,8 @@ public class RunningMean {
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(args[1]));
 		//Launch the job and wait for it to finish
-		job.waitForCompletion(true);
+//		job.waitForCompletion(true);
+		System.exit(job.waitForCompletion(true) ? 0 : 1);
 		
 	}
 	
