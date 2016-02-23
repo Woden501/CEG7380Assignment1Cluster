@@ -161,6 +161,7 @@ public class RunningMean {
 		//Get configuration object and set a job name
 		Configuration conf = new Configuration();
 		conf.set("window.size", args[0]);
+		conf.set("mapred.textoutputformat.separator", ",");
 		Job job = new Job(conf, "runningMean");
 		job.setJarByClass(snedeker.cc.project1.cluster.RunningMean.class);
 		
