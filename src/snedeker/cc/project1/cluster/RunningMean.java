@@ -9,7 +9,6 @@ import java.util.Locale;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -104,7 +103,7 @@ public class RunningMean {
 		job.setJarByClass(snedeker.cc.project1.cluster.RunningMean.class);
 		
 		job.setOutputKeyClass(Text.class);
-		job.setOutputValueClass(IntWritable.class);
+		job.setOutputValueClass(Text.class);
 		//Set key, output classes for the job (same as output classes for Reducer)
 		job.setMapperClass(Map.class);
 		job.setReducerClass(Reduce.class);
